@@ -1,4 +1,4 @@
-package com.springboot.elearningmanagementstructurebyfeature.auth;
+package com.springboot.elearningmanagementstructurebyfeature.role;
 
 import com.springboot.elearningmanagementstructurebyfeature.role.Role;
 import jakarta.persistence.*;
