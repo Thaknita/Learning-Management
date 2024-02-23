@@ -5,7 +5,6 @@ import com.springboot.elearningmanagementstructurebyfeature.auth.UserCreationDto
 import com.springboot.elearningmanagementstructurebyfeature.role.Role;
 import com.springboot.elearningmanagementstructurebyfeature.role.RoleRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -18,8 +17,6 @@ import java.util.Set;
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
-
-    @Autowired
     private PasswordEncoder passwordEncoder;
 
     private final UserRepository userRepository;

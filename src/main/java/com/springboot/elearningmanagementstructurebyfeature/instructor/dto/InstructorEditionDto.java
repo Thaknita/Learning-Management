@@ -1,4 +1,4 @@
-package com.springboot.elearningmanagementstructurebyfeature.instructor;
+package com.springboot.elearningmanagementstructurebyfeature.instructor.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import lombok.Builder;

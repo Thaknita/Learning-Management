@@ -1,5 +1,8 @@
 package com.springboot.elearningmanagementstructurebyfeature.instructor;
 
+import com.springboot.elearningmanagementstructurebyfeature.instructor.dto.InstructorCreationDto;
+import com.springboot.elearningmanagementstructurebyfeature.instructor.dto.InstructorDto;
+import com.springboot.elearningmanagementstructurebyfeature.instructor.dto.InstructorEditionDto;
 import org.mapstruct.BeanMapping;
 import org.mapstruct.Mapper;
 import org.mapstruct.MappingTarget;

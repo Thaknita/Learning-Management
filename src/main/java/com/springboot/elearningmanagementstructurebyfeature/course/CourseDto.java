@@ -1,7 +1,7 @@
 package com.springboot.elearningmanagementstructurebyfeature.course;
 
 import com.springboot.elearningmanagementstructurebyfeature.category.CategoryDto;
-import com.springboot.elearningmanagementstructurebyfeature.instructor.InstructorDto;
+import com.springboot.elearningmanagementstructurebyfeature.instructor.dto.InstructorDto;
 import lombok.Builder;
 
 @Builder
