@@ -18,11 +18,6 @@ import java.util.List;
 public class CustomUserDetails implements UserDetails {
 
     private User user;
-
-
-
-
-
     //to get logged in, below must be all return true
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
