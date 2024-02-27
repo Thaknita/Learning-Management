@@ -8,10 +8,11 @@ import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -20,6 +21,8 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationProvider;
 import org.springframework.security.web.SecurityFilterChain;
 
 import java.security.KeyPair;
@@ -43,13 +46,25 @@ public class SecurityConfig {
         dao.setPasswordEncoder(passwordEncoder);
         return dao;
     }
+    @Bean
+    JwtAuthenticationProvider jwtAuthenticationProvider( @Qualifier("jwtRefreshDecoder") JwtDecoder jwtRefreshDecoder
+    ,JwtAuthenticationConverter jwtAuthenticationConverter) {
+        JwtAuthenticationProvider provider = new JwtAuthenticationProvider(jwtRefreshDecoder);
+        provider.setJwtAuthenticationConverter(jwtAuthenticationConverter);
+    return provider;
+    }
 
     @Bean
-    SecurityFilterChain apiFilterChain(HttpSecurity httpSecurity) throws Exception {
+    JwtAuthenticationConverter jwtAuthenticationConverter (){
+        return  new JwtAuthenticationConverter();
+
+        //custom code here
+    }
+    @Bean
+    SecurityFilterChain apiFilterChain(HttpSecurity httpSecurity, JwtAuthenticationConverter jwtAuthenticationConverter ) throws Exception {
 
         //permit all request
         // httpSecurity.authorizeHttpRequests(request -> request.anyRequest().permitAll());
-
         /*To respect REST architecture we will never store any csrf token on server
             then make our api to stateless .
             - so we disable csrf -- httpSecurity.csrf(AbstractHttpConfigurer::disable);
@@ -63,22 +78,18 @@ public class SecurityConfig {
         ));
         httpSecurity.authorizeHttpRequests(request -> request.requestMatchers(
                                 "/api/v1/auth/**",
-                                "files/**",
-                                "api/v1/courses"
+                                "files/**"
                                 ).permitAll()
                         .anyRequest().authenticated()
-
                 )
                // .httpBasic(Customizer.withDefaults());
-                .oauth2ResourceServer(oauth2-> oauth2.jwt(Customizer.withDefaults()));
+                .oauth2ResourceServer(oauth2-> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter)));
         return httpSecurity.build();
     }
 
-
-
+    @Primary
     @Bean
     KeyPair jwtKeyPair() {
-
         KeyPairGenerator keyPairGenerator = null;
         try {
             keyPairGenerator = KeyPairGenerator.getInstance("RSA");
@@ -87,12 +98,8 @@ public class SecurityConfig {
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException(e);
         }
-
-
-
-
     }
-
+    @Primary
     @Bean
      RSAKey jwtRsa(KeyPair keyPair){
         return new RSAKey.Builder((RSAPublicKey) keyPair.getPublic())
@@ -101,14 +108,16 @@ public class SecurityConfig {
                 .build();
     }
 
+    @Primary
     @Bean
-    JwtDecoder jwtEncoder(RSAKey rsaKey){
+    JwtDecoder jwtDecoder(RSAKey rsaKey){
         try {
             return NimbusJwtDecoder.withPublicKey(rsaKey.toRSAPublicKey()).build();
         } catch (JOSEException e) {
             throw new RuntimeException(e);
         }
     }
+    @Primary
     @Bean
     JWKSource<SecurityContext> jwkSource(RSAKey rsaKey){
         JWKSet jwkSet = new JWKSet(rsaKey);
@@ -118,11 +127,57 @@ public class SecurityConfig {
                 return jwkSelector.select(jwkSet);
             }
         };
-
-
     }
+    @Primary
     @Bean
-    JwtEncoder jWtEncoder (JWKSource<SecurityContext> jwkSource){
+    JwtEncoder jwtEncoder (JWKSource<SecurityContext> jwkSource){
         return new NimbusJwtEncoder(jwkSource);
     }
+
+    //=========================Refresh Token================================
+    @Bean(name = "jwtRefreshKeyPair")
+    KeyPair jwtRefreshKeyPair() {
+        KeyPairGenerator keyPairGenerator = null;
+        try {
+            keyPairGenerator = KeyPairGenerator.getInstance("RSA");
+            keyPairGenerator.initialize(2048);
+            return keyPairGenerator.generateKeyPair();
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+    }
+    @Bean(name = "jwtRefreshRsa")
+    RSAKey jwtRefreshRsa(@Qualifier("jwtRefreshKeyPair") KeyPair keyPair){
+        return new RSAKey.Builder((RSAPublicKey) keyPair.getPublic())
+                .privateKey(keyPair.getPrivate())
+                .keyID(UUID.randomUUID().toString())
+                .build();
+    }
+
+    @Bean(name = "jwtRefreshDecoder")
+    JwtDecoder jwtRefreshDecoder(@Qualifier("jwtRefreshRsa") RSAKey rsaKey){
+        try {
+            return NimbusJwtDecoder.withPublicKey(rsaKey.toRSAPublicKey()).build();
+        } catch (JOSEException e) {
+            throw new RuntimeException(e);
+        }
+    }
+    @Bean(name = "jwkRefreshSource")
+    JWKSource<SecurityContext> jwkRefreshSource(@Qualifier("jwtRefreshRsa") RSAKey rsaKey){
+        JWKSet jwkSet = new JWKSet(rsaKey);
+        return new JWKSource<SecurityContext>() {
+            @Override
+            public List<JWK> get(JWKSelector jwkSelector, SecurityContext securityContext) throws KeySourceException {
+                return jwkSelector.select(jwkSet);
+            }
+        };
+    }
+    @Bean(name = "jwtRefreshEncoder")
+    JwtEncoder jwtRefreshEncoder (@Qualifier("jwkRefreshSource") JWKSource<SecurityContext> jwkSource){
+
+        return new NimbusJwtEncoder(jwkSource);
+    }
+
+
+
 }

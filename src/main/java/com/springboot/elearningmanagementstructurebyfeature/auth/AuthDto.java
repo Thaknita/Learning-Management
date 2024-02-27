@@ -7,7 +7,6 @@ public record AuthDto(
 
         String tokenType,
         String accessToken,
-
         String refreshToken
 
 ) {
