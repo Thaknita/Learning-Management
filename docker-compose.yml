@@ -1,0 +1,22 @@
+version: '3'
+services:
+  e-learning-api-db:
+    container_name: 'e-learning-api-db-stage'
+    image: 'postgres:15'
+    environment:
+      - TZ=Asia/Bangkok
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=qwerqwer
+      - POSTGRES_DB=db_sb9
+    ports:
+      - '5446:5432'
+  e-learning-api :
+    container_name: 'e-learning-api-stage'
+    image: 'e-learning-api:1.0'
+    ports:
+      - '15600:8080'
+    depends_on:
+      - e-learning-api-db
+
+
+

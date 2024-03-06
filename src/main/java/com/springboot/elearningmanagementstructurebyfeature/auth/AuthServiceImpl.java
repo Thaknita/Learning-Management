@@ -6,6 +6,8 @@ import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -17,6 +19,8 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
+import org.springframework.security.oauth2.server.resource.authentication.BearerTokenAuthenticationToken;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -35,7 +39,16 @@ public class AuthServiceImpl implements AuthService {
     private final AuthRepository authRepository;
     private final DaoAuthenticationProvider daoAuthenticationProvider;
     private final JwtEncoder jwtEncoder;
-    private AuthDto creatAccessToken(Authentication authentication){
+    private final JwtAuthenticationProvider jwtAuthenticationProvider;
+    private JwtEncoder jwtRefreshTokenEncoder;
+    @Autowired
+    @Qualifier("jwtRefreshEncoder")
+    public void setJwtRefreshTokenEncoder(JwtEncoder jwtRefreshTokenEncoder){
+        this.jwtRefreshTokenEncoder = jwtRefreshTokenEncoder;
+    }
+
+
+    private String creatAccessToken(Authentication authentication){
         Instant now = Instant.now();
         String scope = authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
@@ -44,16 +57,24 @@ public class AuthServiceImpl implements AuthService {
                 .id(authentication.getName())
                 .audience(List.of("Mobile", "Web"))
                 .issuedAt(now)
-                .expiresAt(now.plus(30, ChronoUnit.MINUTES))
+                .expiresAt(now.plus(1, ChronoUnit.MINUTES))
                 .issuer(authentication.getName())
                 .subject("access token")
                 .claim("scope", scope)
                 .build();
-        String accessToken = jwtEncoder.encode(JwtEncoderParameters.from(jwtClaimsSet)).getTokenValue();
-        return AuthDto.builder()
-                .tokenType("Bearer")
-                .accessToken(accessToken)
+        return jwtEncoder.encode(JwtEncoderParameters.from(jwtClaimsSet)).getTokenValue();
+    }
+    private String createRefreshToken(Authentication authentication){
+        Instant now = Instant.now();
+        JwtClaimsSet jwtClaimsSet = JwtClaimsSet.builder()
+                .id(authentication.getName())
+                .audience(List.of("Mobile", "Web"))
+                .issuedAt(now)
+                .expiresAt(now.plus(30, ChronoUnit.DAYS))
+                .issuer(authentication.getName())
+                .subject("access token")
                 .build();
+        return jwtRefreshTokenEncoder.encode(JwtEncoderParameters.from(jwtClaimsSet)).getTokenValue();
     }
     //inject properties application
     @Value("${spring.mail.username}")
@@ -61,7 +82,16 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public AuthDto refresh(RefreshTokenDto refreshTokenDto) {
-        return null;
+
+        Authentication auth = new BearerTokenAuthenticationToken(refreshTokenDto.refreshToken());
+
+        auth = jwtAuthenticationProvider.authenticate(auth);
+
+        return AuthDto.builder()
+                .tokenType("Bearer")
+                .accessToken(this.creatAccessToken(auth))
+                .refreshToken(this.createRefreshToken(auth))
+                .build();
     }
 
     @Override
@@ -75,7 +105,11 @@ public class AuthServiceImpl implements AuthService {
         log.info("Auth: {}", auth);
         log.info("Auth:{}", auth.getName());
         log.info("Auth: {}", auth.getAuthorities());
-        return this.creatAccessToken(auth);
+        return AuthDto.builder()
+                .tokenType("Bearer")
+                .accessToken(this.creatAccessToken(auth))
+                .refreshToken(this.createRefreshToken(auth))
+                .build();
     }
     @Transactional
     @Override

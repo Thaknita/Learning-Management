@@ -53,7 +53,6 @@ public class SecurityConfig {
         provider.setJwtAuthenticationConverter(jwtAuthenticationConverter);
     return provider;
     }
-
     @Bean
     JwtAuthenticationConverter jwtAuthenticationConverter (){
         return  new JwtAuthenticationConverter();
@@ -78,7 +77,8 @@ public class SecurityConfig {
         ));
         httpSecurity.authorizeHttpRequests(request -> request.requestMatchers(
                                 "/api/v1/auth/**",
-                                "files/**"
+                                "files/**",
+                                "/api/v1/public"
                                 ).permitAll()
                         .anyRequest().authenticated()
                 )
@@ -153,7 +153,6 @@ public class SecurityConfig {
                 .keyID(UUID.randomUUID().toString())
                 .build();
     }
-
     @Bean(name = "jwtRefreshDecoder")
     JwtDecoder jwtRefreshDecoder(@Qualifier("jwtRefreshRsa") RSAKey rsaKey){
         try {
@@ -177,7 +176,4 @@ public class SecurityConfig {
 
         return new NimbusJwtEncoder(jwkSource);
     }
-
-
-
 }
